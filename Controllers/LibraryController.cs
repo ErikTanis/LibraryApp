@@ -23,8 +23,10 @@ namespace LibraryApp.Controllers
 
         [HttpGet("[action]")]
         public IActionResult GetAll() {
+            //return BadRequest("Not implemented yet");
             var result = Library.Values.ToArray();
             // TODO: Add filters on each property
+            Thread.Sleep(1000);
             return Ok(result);
         }
 

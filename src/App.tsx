@@ -2,7 +2,7 @@ import React = require("react");
 import '../static/css/site.css'
 import { fromArray } from "./fromArray";
 import { EmptyNode, List } from "./list";
-import { ApiData, Idle } from "./dataLoaders";
+import { ApiData, FullFilled, Idle, Pending, Rejected } from "./dataLoaders";
 
 type Book = {
     id: number
@@ -46,18 +46,33 @@ export class App extends React.Component<AppProps, AppState> {
             selectedFilter: "title"
         }
     }
+    
+    loadLibrary = async (): Promise<Library> => {
+        const response = await fetch('http://localhost:5000/api/library/getall');
+        if (!response.ok) {
+            const errorMessage = response.headers.get('content-type')?.includes('application/problem+json')
+                ? response.statusText
+                : await response.text().then(text => text || response.statusText);
+            throw new Error(errorMessage);
+        }
+        return await response.json();
+    }
 
     componentDidMount() {
-        fetch('http://localhost:5000/api/library/getall')
-            .then(response => response.json())
-            .then(data => this.setState({ library: { kind: 'fullfilled', data: data } }))
-            .catch(error => this.setState({ library: { kind: 'rejected', errorMessage: error.message } }))
+        this.setState({ 
+            library: Pending(this.loadLibrary)
+        }, () => {
+            if (this.state.library.kind === 'pending') {
+                this.state.library.loader()
+                    .then(data => this.setState({ library: FullFilled(data) }))
+                    .catch(error => this.setState({ library: Rejected(error.message) }));
+            }
+        });
     }
 
     // filterAction: LibraryFilter = (library: Library) => (bookFilter: BookFilter) => fromArray(library.filter(bookFilter))
 
     render(): React.ReactNode {
-        
         if (this.state.library.kind == 'pending') return <div>Loading...</div>
         if (this.state.library.kind == 'rejected') return <div>{this.state.library.errorMessage || "Something went wrong..."}</div>
         if (this.state.library.kind == 'idle') return <div>Nothing to show yet</div>
